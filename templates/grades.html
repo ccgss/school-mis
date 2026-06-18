@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-trophy"></i> 成绩管理</h4>
+    <a href="{{ url_for('grade_add') }}" class="btn btn-warning">
+        <i class="bi bi-plus-circle"></i> 录入成绩
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if grades %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>学生</th>
+                        <th>课程</th>
+                        <th>成绩</th>
+                        <th>考试类型</th>
+                        <th>学期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for g in grades %}
+                    <tr>
+                        <td>{{ g.id }}</td>
+                        <td>{{ students.get(g.student_id, "未知") }}</td>
+                        <td>{{ courses.get(g.course_id, "未知") }}</td>
+                        <td>
+                            <span class="badge {% if g.score >= 90 %}bg-success{% elif g.score >= 60 %}bg-primary{% else %}bg-danger{% endif %}">
+                                {{ g.score }}
+                            </span>
+                        </td>
+                        <td>{{ g.exam_type }}</td>
+                        <td>{{ g.semester }}</td>
+                        <td>
+                            <a href="{{ url_for('grade_delete', grade_id=g.id) }}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('确定要删除此成绩记录吗？')">
+                                <i class="bi bi-trash"></i> 删除
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center my-4">暂无成绩数据</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-person-badge"></i> 教师管理</h4>
+    <a href="{{ url_for('teacher_add') }}" class="btn btn-success">
+        <i class="bi bi-person-plus"></i> 添加教师
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form class="row g-2 mb-3" method="GET">
+            <div class="col-auto">
+                <input type="text" name="keyword" class="form-control search-box"
+                       placeholder="搜索姓名/科目..." value="{{ keyword }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> 搜索</button>
+                {% if keyword %}
+                <a href="{{ url_for('teachers') }}" class="btn btn-outline-secondary">清除</a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if teachers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>工号</th>
+                        <th>姓名</th>
+                        <th>性别</th>
+                        <th>科目</th>
+                        <th>电话</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers %}
+                    <tr>
+                        <td>{{ t.id }}</td>
+                        <td>{{ t.teacher_id }}</td>
+                        <td>{{ t.name }}</td>
+                        <td>{{ t.gender }}</td>
+                        <td>{{ t.subject }}</td>
+                        <td>{{ t.phone }}</td>
+                        <td>
+                            <a href="{{ url_for('teacher_edit', teacher_id=t.id) }}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </a>
+                            <a href="{{ url_for('teacher_delete', teacher_id=t.id) }}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('确定要删除教师 {{ t.name }} 吗？')">
+                                <i class="bi bi-trash"></i> 删除
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center my-4">暂无教师数据</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

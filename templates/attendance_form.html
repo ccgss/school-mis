@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-plus-circle"></i> 添加考勤记录
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">学生 <span class="text-danger">*</span></label>
+                            <select name="student_id" class="form-select" required>
+                                <option value="">请选择学生</option>
+                                {% for s in students %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.class_name }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">课程 <span class="text-danger">*</span></label>
+                            <select name="course_id" class="form-select" required>
+                                <option value="">请选择课程</option>
+                                {% for c in courses %}
+                                <option value="{{ c.id }}">{{ c.course_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">日期 <span class="text-danger">*</span></label>
+                            <input type="date" name="date" class="form-control" required
+                                   value="{{ today }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">状态 <span class="text-danger">*</span></label>
+                            <select name="status" class="form-select" required>
+                                <option value="出勤">出勤</option>
+                                <option value="迟到">迟到</option>
+                                <option value="缺勤">缺勤</option>
+                                <option value="请假">请假</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="remark" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('attendance') }}" class="btn btn-secondary">返回</a>
+                        <button type="submit" class="btn btn-primary">添加记录</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

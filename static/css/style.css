@@ -1,0 +1,74 @@
+body {
+    background-color: #f5f7fa;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 500;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
+}
+
+.stat-card i {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.stat-card .number {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.stat-card .label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table thead {
+    background-color: #f0f4ff;
+}
+
+.btn-action {
+    padding: 2px 8px;
+    font-size: 0.8rem;
+}
+
+.search-box {
+    max-width: 300px;
+}
+
+footer {
+    margin-top: 30px;
+    padding: 15px 0;
+    color: #6c757d;
+    text-align: center;
+}
