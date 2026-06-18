@@ -1,245 +1,331 @@
-import json
+import sqlite3
 import os
 from datetime import datetime
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "school.db")
 
-def ensure_data_file(filename, default_data):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(default_data, f, ensure_ascii=False, indent=2)
-    return path
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-def load_data(filename):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path):
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_data(filename, data):
-    path = os.path.join(DATA_DIR, filename)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def get_next_id(data):
-    if not data:
-        return 1
-    return max(item["id"] for item in data) + 1
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = get_db()
+    c = conn.cursor()
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            gender TEXT DEFAULT '男',
+            class_name TEXT NOT NULL,
+            phone TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            address TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS teachers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            gender TEXT DEFAULT '男',
+            subject TEXT NOT NULL,
+            phone TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_name TEXT NOT NULL,
+            teacher_id INTEGER,
+            schedule TEXT DEFAULT '',
+            classroom TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            course_id INTEGER NOT NULL,
+            score REAL NOT NULL,
+            exam_type TEXT DEFAULT '期中',
+            semester TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            course_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            status TEXT DEFAULT '出勤',
+            remark TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+    """)
+    conn.commit()
+    conn.close()
 
 class StudentManager:
-    FILE = "students.json"
-
     @staticmethod
     def get_all():
-        return load_data(StudentManager.FILE)
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM students ORDER BY id").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_id(student_id):
-        data = load_data(StudentManager.FILE)
-        for s in data:
-            if s["id"] == student_id:
-                return s
-        return None
+        conn = get_db()
+        row = conn.execute("SELECT * FROM students WHERE id=?", (student_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     @staticmethod
     def add(student):
-        data = load_data(StudentManager.FILE)
-        student["id"] = get_next_id(data)
-        student["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        data.append(student)
-        save_data(StudentManager.FILE, data)
-        return student
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""INSERT INTO students (student_id, name, gender, class_name, phone, email, address)
+                     VALUES (?,?,?,?,?,?,?)""",
+                  (student["student_id"], student["name"], student["gender"],
+                   student["class_name"], student.get("phone",""),
+                   student.get("email",""), student.get("address","")))
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return StudentManager.get_by_id(new_id)
 
     @staticmethod
     def update(student_id, updates):
-        data = load_data(StudentManager.FILE)
-        for s in data:
-            if s["id"] == student_id:
-                s.update(updates)
-                save_data(StudentManager.FILE, data)
-                return s
-        return None
+        conn = get_db()
+        conn.execute("""UPDATE students SET student_id=?, name=?, gender=?, class_name=?, phone=?, email=?, address=?
+                        WHERE id=?""",
+                     (updates["student_id"], updates["name"], updates["gender"],
+                      updates["class_name"], updates.get("phone",""),
+                      updates.get("email",""), updates.get("address",""), student_id))
+        conn.commit()
+        conn.close()
+        return StudentManager.get_by_id(student_id)
 
     @staticmethod
     def delete(student_id):
-        data = load_data(StudentManager.FILE)
-        new_data = [s for s in data if s["id"] != student_id]
-        if len(new_data) != len(data):
-            save_data(StudentManager.FILE, new_data)
-            return True
-        return False
+        conn = get_db()
+        conn.execute("DELETE FROM students WHERE id=?", (student_id,))
+        conn.commit()
+        conn.close()
+        return True
 
     @staticmethod
     def search(keyword):
-        data = load_data(StudentManager.FILE)
-        keyword = keyword.lower()
-        return [s for s in data if
-                keyword in s["name"].lower() or
-                keyword in s.get("student_id", "").lower() or
-                keyword in s.get("class_name", "").lower()]
+        conn = get_db()
+        kw = f"%{keyword}%"
+        rows = conn.execute(
+            "SELECT * FROM students WHERE name LIKE ? OR student_id LIKE ? OR class_name LIKE ? ORDER BY id",
+            (kw, kw, kw)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
 class TeacherManager:
-    FILE = "teachers.json"
-
     @staticmethod
     def get_all():
-        return load_data(TeacherManager.FILE)
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM teachers ORDER BY id").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_id(teacher_id):
-        data = load_data(TeacherManager.FILE)
-        for t in data:
-            if t["id"] == teacher_id:
-                return t
-        return None
+        conn = get_db()
+        row = conn.execute("SELECT * FROM teachers WHERE id=?", (teacher_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     @staticmethod
     def add(teacher):
-        data = load_data(TeacherManager.FILE)
-        teacher["id"] = get_next_id(data)
-        teacher["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        data.append(teacher)
-        save_data(TeacherManager.FILE, data)
-        return teacher
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""INSERT INTO teachers (teacher_id, name, gender, subject, phone, email)
+                     VALUES (?,?,?,?,?,?)""",
+                  (teacher["teacher_id"], teacher["name"], teacher["gender"],
+                   teacher["subject"], teacher.get("phone",""), teacher.get("email","")))
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return TeacherManager.get_by_id(new_id)
 
     @staticmethod
     def update(teacher_id, updates):
-        data = load_data(TeacherManager.FILE)
-        for t in data:
-            if t["id"] == teacher_id:
-                t.update(updates)
-                save_data(TeacherManager.FILE, data)
-                return t
-        return None
+        conn = get_db()
+        conn.execute("""UPDATE teachers SET teacher_id=?, name=?, gender=?, subject=?, phone=?, email=?
+                        WHERE id=?""",
+                     (updates["teacher_id"], updates["name"], updates["gender"],
+                      updates["subject"], updates.get("phone",""), updates.get("email",""), teacher_id))
+        conn.commit()
+        conn.close()
+        return TeacherManager.get_by_id(teacher_id)
 
     @staticmethod
     def delete(teacher_id):
-        data = load_data(TeacherManager.FILE)
-        new_data = [t for t in data if t["id"] != teacher_id]
-        if len(new_data) != len(data):
-            save_data(TeacherManager.FILE, new_data)
-            return True
-        return False
+        conn = get_db()
+        conn.execute("DELETE FROM teachers WHERE id=?", (teacher_id,))
+        conn.commit()
+        conn.close()
+        return True
 
     @staticmethod
     def search(keyword):
-        data = load_data(TeacherManager.FILE)
-        keyword = keyword.lower()
-        return [t for t in data if
-                keyword in t["name"].lower() or
-                keyword in t.get("subject", "").lower()]
+        conn = get_db()
+        kw = f"%{keyword}%"
+        rows = conn.execute(
+            "SELECT * FROM teachers WHERE name LIKE ? OR subject LIKE ? ORDER BY id",
+            (kw, kw)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
 class CourseManager:
-    FILE = "courses.json"
-
     @staticmethod
     def get_all():
-        return load_data(CourseManager.FILE)
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM courses ORDER BY id").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_id(course_id):
-        data = load_data(CourseManager.FILE)
-        for c in data:
-            if c["id"] == course_id:
-                return c
-        return None
+        conn = get_db()
+        row = conn.execute("SELECT * FROM courses WHERE id=?", (course_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     @staticmethod
     def add(course):
-        data = load_data(CourseManager.FILE)
-        course["id"] = get_next_id(data)
-        course["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        data.append(course)
-        save_data(CourseManager.FILE, data)
-        return course
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""INSERT INTO courses (course_name, teacher_id, schedule, classroom)
+                     VALUES (?,?,?,?)""",
+                  (course["course_name"], course["teacher_id"],
+                   course.get("schedule",""), course.get("classroom","")))
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return CourseManager.get_by_id(new_id)
 
     @staticmethod
     def update(course_id, updates):
-        data = load_data(CourseManager.FILE)
-        for c in data:
-            if c["id"] == course_id:
-                c.update(updates)
-                save_data(CourseManager.FILE, data)
-                return c
-        return None
+        conn = get_db()
+        conn.execute("""UPDATE courses SET course_name=?, teacher_id=?, schedule=?, classroom=?
+                        WHERE id=?""",
+                     (updates["course_name"], updates["teacher_id"],
+                      updates.get("schedule",""), updates.get("classroom",""), course_id))
+        conn.commit()
+        conn.close()
+        return CourseManager.get_by_id(course_id)
 
     @staticmethod
     def delete(course_id):
-        data = load_data(CourseManager.FILE)
-        new_data = [c for c in data if c["id"] != course_id]
-        if len(new_data) != len(data):
-            save_data(CourseManager.FILE, new_data)
-            return True
-        return False
+        conn = get_db()
+        conn.execute("DELETE FROM courses WHERE id=?", (course_id,))
+        conn.commit()
+        conn.close()
+        return True
 
 class GradeManager:
-    FILE = "grades.json"
-
     @staticmethod
     def get_all():
-        return load_data(GradeManager.FILE)
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM grades ORDER BY id").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_student(student_id):
-        data = load_data(GradeManager.FILE)
-        return [g for g in data if g["student_id"] == student_id]
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM grades WHERE student_id=?", (student_id,)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_course(course_id):
-        data = load_data(GradeManager.FILE)
-        return [g for g in data if g["course_id"] == course_id]
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM grades WHERE course_id=?", (course_id,)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def add(grade):
-        data = load_data(GradeManager.FILE)
-        grade["id"] = get_next_id(data)
-        grade["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        data.append(grade)
-        save_data(GradeManager.FILE, data)
-        return grade
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""INSERT INTO grades (student_id, course_id, score, exam_type, semester)
+                     VALUES (?,?,?,?,?)""",
+                  (grade["student_id"], grade["course_id"], grade["score"],
+                   grade.get("exam_type",""), grade.get("semester","")))
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return GradeManager.get_by_id(new_id)
+
+    @staticmethod
+    def get_by_id(grade_id):
+        conn = get_db()
+        row = conn.execute("SELECT * FROM grades WHERE id=?", (grade_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     @staticmethod
     def delete(grade_id):
-        data = load_data(GradeManager.FILE)
-        new_data = [g for g in data if g["id"] != grade_id]
-        if len(new_data) != len(data):
-            save_data(GradeManager.FILE, new_data)
-            return True
-        return False
+        conn = get_db()
+        conn.execute("DELETE FROM grades WHERE id=?", (grade_id,))
+        conn.commit()
+        conn.close()
+        return True
 
 class AttendanceManager:
-    FILE = "attendance.json"
-
     @staticmethod
     def get_all():
-        return load_data(AttendanceManager.FILE)
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM attendance ORDER BY id").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_student(student_id):
-        data = load_data(AttendanceManager.FILE)
-        return [a for a in data if a["student_id"] == student_id]
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM attendance WHERE student_id=?", (student_id,)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def get_by_date(date_str):
-        data = load_data(AttendanceManager.FILE)
-        return [a for a in data if a["date"] == date_str]
+        conn = get_db()
+        rows = conn.execute("SELECT * FROM attendance WHERE date=?", (date_str,)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def add(record):
-        data = load_data(AttendanceManager.FILE)
-        record["id"] = get_next_id(data)
-        record["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        data.append(record)
-        save_data(AttendanceManager.FILE, data)
-        return record
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("""INSERT INTO attendance (student_id, course_id, date, status, remark)
+                     VALUES (?,?,?,?,?)""",
+                  (record["student_id"], record["course_id"], record["date"],
+                   record["status"], record.get("remark","")))
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return AttendanceManager.get_by_id(new_id)
+
+    @staticmethod
+    def get_by_id(attendance_id):
+        conn = get_db()
+        row = conn.execute("SELECT * FROM attendance WHERE id=?", (attendance_id,)).fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     @staticmethod
     def delete(attendance_id):
-        data = load_data(AttendanceManager.FILE)
-        new_data = [a for a in data if a["id"] != attendance_id]
-        if len(new_data) != len(data):
-            save_data(AttendanceManager.FILE, new_data)
-            return True
-        return False
+        conn = get_db()
+        conn.execute("DELETE FROM attendance WHERE id=?", (attendance_id,))
+        conn.commit()
+        conn.close()
+        return True
+
+init_db()

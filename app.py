@@ -1,21 +1,12 @@
 from datetime import date
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from data_manager import (
-    ensure_data_file, StudentManager, TeacherManager,
+    StudentManager, TeacherManager,
     CourseManager, GradeManager, AttendanceManager
 )
 
 app = Flask(__name__)
 app.secret_key = "school_mis_secret_key"
-
-for fname, default in [
-    ("students.json", []),
-    ("teachers.json", []),
-    ("courses.json", []),
-    ("grades.json", []),
-    ("attendance.json", []),
-]:
-    ensure_data_file(fname, default)
 
 @app.route("/")
 def dashboard():
