@@ -1,12 +1,28 @@
 from datetime import date
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, make_response, g
 from data_manager import (
     StudentManager, TeacherManager,
     CourseManager, GradeManager, AttendanceManager
 )
+from translations import t, get_lang, LANGUAGES
 
 app = Flask(__name__)
 app.secret_key = "school_mis_secret_key"
+
+
+@app.context_processor
+def inject_translation():
+    return dict(t=t, current_lang=get_lang(), languages=LANGUAGES)
+
+
+@app.route("/lang/<lang>")
+def set_lang(lang):
+    if lang in LANGUAGES:
+        resp = make_response(redirect(request.referrer or url_for("dashboard")))
+        resp.set_cookie("lang", lang, max_age=365 * 24 * 3600)
+        return resp
+    return redirect(url_for("dashboard"))
+
 
 @app.route("/")
 def dashboard():
@@ -15,24 +31,24 @@ def dashboard():
     courses = CourseManager.get_all()
     grades = GradeManager.get_all()
     attendance = AttendanceManager.get_all()
-
     stats = {
         "student_count": len(students),
         "teacher_count": len(teachers),
         "course_count": len(courses),
-        "grade_count": len(grades),
-        "attendance_count": len(attendance),
+        "grade_record_count": len(grades),
+        "attendance_record_count": len(attendance),
     }
     return render_template("dashboard.html", stats=stats)
+
+
+# ===== Students =====
 
 @app.route("/students")
 def students():
     keyword = request.args.get("keyword", "")
-    if keyword:
-        data = StudentManager.search(keyword)
-    else:
-        data = StudentManager.get_all()
+    data = StudentManager.search(keyword) if keyword else StudentManager.get_all()
     return render_template("students.html", students=data, keyword=keyword)
+
 
 @app.route("/students/add", methods=["GET", "POST"])
 def student_add():
@@ -47,15 +63,16 @@ def student_add():
             "address": request.form.get("address", ""),
         }
         StudentManager.add(s)
-        flash("学生添加成功！", "success")
+        flash(t("student_added"), "success")
         return redirect(url_for("students"))
     return render_template("student_form.html", student=None)
+
 
 @app.route("/students/edit/<int:student_id>", methods=["GET", "POST"])
 def student_edit(student_id):
     student = StudentManager.get_by_id(student_id)
     if not student:
-        flash("学生不存在！", "danger")
+        flash(t("student_not_found"), "danger")
         return redirect(url_for("students"))
     if request.method == "POST":
         updates = {
@@ -68,29 +85,31 @@ def student_edit(student_id):
             "address": request.form.get("address", ""),
         }
         StudentManager.update(student_id, updates)
-        flash("学生信息更新成功！", "success")
+        flash(t("student_updated"), "success")
         return redirect(url_for("students"))
     return render_template("student_form.html", student=student)
+
 
 @app.route("/students/delete/<int:student_id>")
 def student_delete(student_id):
     StudentManager.delete(student_id)
-    flash("学生已删除！", "success")
+    flash(t("student_deleted"), "success")
     return redirect(url_for("students"))
+
+
+# ===== Teachers =====
 
 @app.route("/teachers")
 def teachers():
     keyword = request.args.get("keyword", "")
-    if keyword:
-        data = TeacherManager.search(keyword)
-    else:
-        data = TeacherManager.get_all()
+    data = TeacherManager.search(keyword) if keyword else TeacherManager.get_all()
     return render_template("teachers.html", teachers=data, keyword=keyword)
+
 
 @app.route("/teachers/add", methods=["GET", "POST"])
 def teacher_add():
     if request.method == "POST":
-        t = {
+        td = {
             "teacher_id": request.form["teacher_id"],
             "name": request.form["name"],
             "gender": request.form["gender"],
@@ -98,16 +117,17 @@ def teacher_add():
             "phone": request.form.get("phone", ""),
             "email": request.form.get("email", ""),
         }
-        TeacherManager.add(t)
-        flash("教师添加成功！", "success")
+        TeacherManager.add(td)
+        flash(t("teacher_added"), "success")
         return redirect(url_for("teachers"))
     return render_template("teacher_form.html", teacher=None)
+
 
 @app.route("/teachers/edit/<int:teacher_id>", methods=["GET", "POST"])
 def teacher_edit(teacher_id):
     teacher = TeacherManager.get_by_id(teacher_id)
     if not teacher:
-        flash("教师不存在！", "danger")
+        flash(t("teacher_not_found"), "danger")
         return redirect(url_for("teachers"))
     if request.method == "POST":
         updates = {
@@ -119,21 +139,26 @@ def teacher_edit(teacher_id):
             "email": request.form.get("email", ""),
         }
         TeacherManager.update(teacher_id, updates)
-        flash("教师信息更新成功！", "success")
+        flash(t("teacher_updated"), "success")
         return redirect(url_for("teachers"))
     return render_template("teacher_form.html", teacher=teacher)
+
 
 @app.route("/teachers/delete/<int:teacher_id>")
 def teacher_delete(teacher_id):
     TeacherManager.delete(teacher_id)
-    flash("教师已删除！", "success")
+    flash(t("teacher_deleted"), "success")
     return redirect(url_for("teachers"))
+
+
+# ===== Courses =====
 
 @app.route("/courses")
 def courses():
     data = CourseManager.get_all()
-    teachers = {t["id"]: t["name"] for t in TeacherManager.get_all()}
-    return render_template("courses.html", courses=data, teachers=teachers)
+    teachers_map = {tc["id"]: tc["name"] for tc in TeacherManager.get_all()}
+    return render_template("courses.html", courses=data, teachers=teachers_map)
+
 
 @app.route("/courses/add", methods=["GET", "POST"])
 def course_add():
@@ -145,16 +170,17 @@ def course_add():
             "classroom": request.form.get("classroom", ""),
         }
         CourseManager.add(c)
-        flash("课程添加成功！", "success")
+        flash(t("course_added"), "success")
         return redirect(url_for("courses"))
-    teachers = TeacherManager.get_all()
-    return render_template("course_form.html", course=None, teachers=teachers)
+    teachers_list = TeacherManager.get_all()
+    return render_template("course_form.html", course=None, teachers=teachers_list)
+
 
 @app.route("/courses/edit/<int:course_id>", methods=["GET", "POST"])
 def course_edit(course_id):
     course = CourseManager.get_by_id(course_id)
     if not course:
-        flash("课程不存在！", "danger")
+        flash(t("course_not_found"), "danger")
         return redirect(url_for("courses"))
     if request.method == "POST":
         updates = {
@@ -164,53 +190,63 @@ def course_edit(course_id):
             "classroom": request.form.get("classroom", ""),
         }
         CourseManager.update(course_id, updates)
-        flash("课程信息更新成功！", "success")
+        flash(t("course_updated"), "success")
         return redirect(url_for("courses"))
-    teachers = TeacherManager.get_all()
-    return render_template("course_form.html", course=course, teachers=teachers)
+    teachers_list = TeacherManager.get_all()
+    return render_template("course_form.html", course=course, teachers=teachers_list)
+
 
 @app.route("/courses/delete/<int:course_id>")
 def course_delete(course_id):
     CourseManager.delete(course_id)
-    flash("课程已删除！", "success")
+    flash(t("course_deleted"), "success")
     return redirect(url_for("courses"))
+
+
+# ===== Grades =====
 
 @app.route("/grades")
 def grades():
     data = GradeManager.get_all()
-    students = {s["id"]: s["name"] for s in StudentManager.get_all()}
-    courses = {c["id"]: c["course_name"] for c in CourseManager.get_all()}
-    return render_template("grades.html", grades=data, students=students, courses=courses)
+    students_map = {s["id"]: s["name"] for s in StudentManager.get_all()}
+    courses_map = {c["id"]: c["course_name"] for c in CourseManager.get_all()}
+    return render_template("grades.html", grades=data, students=students_map, courses=courses_map)
+
 
 @app.route("/grades/add", methods=["GET", "POST"])
 def grade_add():
     if request.method == "POST":
-        g = {
+        gd = {
             "student_id": int(request.form["student_id"]),
             "course_id": int(request.form["course_id"]),
             "score": float(request.form["score"]),
-            "exam_type": request.form.get("exam_type", "期中"),
+            "exam_type": request.form.get("exam_type", ""),
             "semester": request.form.get("semester", ""),
         }
-        GradeManager.add(g)
-        flash("成绩录入成功！", "success")
+        GradeManager.add(gd)
+        flash(t("grade_added"), "success")
         return redirect(url_for("grades"))
-    students = StudentManager.get_all()
-    courses = CourseManager.get_all()
-    return render_template("grade_form.html", grade=None, students=students, courses=courses)
+    students_list = StudentManager.get_all()
+    courses_list = CourseManager.get_all()
+    return render_template("grade_form.html", grade=None, students=students_list, courses=courses_list)
+
 
 @app.route("/grades/delete/<int:grade_id>")
 def grade_delete(grade_id):
     GradeManager.delete(grade_id)
-    flash("成绩已删除！", "success")
+    flash(t("grade_deleted"), "success")
     return redirect(url_for("grades"))
+
+
+# ===== Attendance =====
 
 @app.route("/attendance")
 def attendance():
     data = AttendanceManager.get_all()
-    students = {s["id"]: s["name"] for s in StudentManager.get_all()}
-    courses = {c["id"]: c["course_name"] for c in CourseManager.get_all()}
-    return render_template("attendance.html", records=data, students=students, courses=courses)
+    students_map = {s["id"]: s["name"] for s in StudentManager.get_all()}
+    courses_map = {c["id"]: c["course_name"] for c in CourseManager.get_all()}
+    return render_template("attendance.html", records=data, students=students_map, courses=courses_map)
+
 
 @app.route("/attendance/add", methods=["GET", "POST"])
 def attendance_add():
@@ -223,17 +259,20 @@ def attendance_add():
             "remark": request.form.get("remark", ""),
         }
         AttendanceManager.add(a)
-        flash("考勤记录添加成功！", "success")
+        flash(t("attendance_added"), "success")
         return redirect(url_for("attendance"))
-    students = StudentManager.get_all()
-    courses = CourseManager.get_all()
-    return render_template("attendance_form.html", record=None, students=students, courses=courses, today=date.today().isoformat())
+    students_list = StudentManager.get_all()
+    courses_list = CourseManager.get_all()
+    today = date.today().isoformat()
+    return render_template("attendance_form.html", record=None, students=students_list, courses=courses_list, today=today)
+
 
 @app.route("/attendance/delete/<int:attendance_id>")
 def attendance_delete(attendance_id):
     AttendanceManager.delete(attendance_id)
-    flash("考勤记录已删除！", "success")
+    flash(t("attendance_deleted"), "success")
     return redirect(url_for("attendance"))
+
 
 if __name__ == "__main__":
     import os

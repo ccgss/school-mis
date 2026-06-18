@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4><i class="bi bi-book"></i> 课程管理</h4>
+    <h4><i class="bi bi-book"></i> {{ t("course.management") }}</h4>
     <a href="{{ url_for('course_add') }}" class="btn btn-info text-white">
-        <i class="bi bi-book-plus"></i> 添加课程
+        <i class="bi bi-book-plus"></i> {{ t("course.add") }}
     </a>
 </div>
 
@@ -14,12 +14,12 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>课程名称</th>
-                        <th>授课教师</th>
-                        <th>上课时间</th>
-                        <th>教室</th>
-                        <th>操作</th>
+                        <th>{{ t("id") }}</th>
+                        <th>{{ t("course.course_name") }}</th>
+                        <th>{{ t("course.teacher") }}</th>
+                        <th>{{ t("course.schedule") }}</th>
+                        <th>{{ t("course.classroom") }}</th>
+                        <th>{{ t("action") }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -27,17 +27,17 @@
                     <tr>
                         <td>{{ c.id }}</td>
                         <td>{{ c.course_name }}</td>
-                        <td>{{ teachers.get(c.teacher_id, "未知") }}</td>
+                        <td>{{ teachers.get(c.teacher_id, t("general.unknown")) }}</td>
                         <td>{{ c.schedule }}</td>
                         <td>{{ c.classroom }}</td>
                         <td>
                             <a href="{{ url_for('course_edit', course_id=c.id) }}" class="btn btn-sm btn-warning">
-                                <i class="bi bi-pencil"></i> 编辑
+                                <i class="bi bi-pencil"></i> {{ t("course.edit_btn") }}
                             </a>
                             <a href="{{ url_for('course_delete', course_id=c.id) }}"
                                class="btn btn-sm btn-danger"
-                               onclick="return confirm('确定要删除课程 {{ c.course_name }} 吗？')">
-                                <i class="bi bi-trash"></i> 删除
+                               onclick="return confirm('{{ t("course.confirm_delete") }} {{ c.course_name }} ?')">
+                                <i class="bi bi-trash"></i> {{ t("course.delete_btn") }}
                             </a>
                         </td>
                     </tr>
@@ -46,7 +46,7 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted text-center my-4">暂无课程数据</p>
+        <p class="text-muted text-center my-4">{{ t("course.no_data") }}</p>
         {% endif %}
     </div>
 </div>

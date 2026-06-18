@@ -5,50 +5,50 @@
         <div class="card">
             <div class="card-header">
                 <i class="bi {{ 'bi-pencil' if teacher else 'bi-person-plus' }}"></i>
-                {{ "编辑教师" if teacher else "添加教师" }}
+                {{ t("teacher.edit_title") if teacher else t("teacher.add_title") }}
             </div>
             <div class="card-body">
                 <form method="POST">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">工号 <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ t("teacher.id") }} <span class="text-danger">*</span></label>
                             <input type="text" name="teacher_id" class="form-control" required
                                    value="{{ teacher.teacher_id if teacher else '' }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">姓名 <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ t("teacher.name") }} <span class="text-danger">*</span></label>
                             <input type="text" name="name" class="form-control" required
                                    value="{{ teacher.name if teacher else '' }}">
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label class="form-label">性别</label>
+                            <label class="form-label">{{ t("teacher.gender") }}</label>
                             <select name="gender" class="form-select">
-                                <option value="男" {{ "selected" if teacher and teacher.gender == "男" else "" }}>男</option>
-                                <option value="女" {{ "selected" if teacher and teacher.gender == "女" else "" }}>女</option>
+                                <option value="男" {{ "selected" if teacher and teacher.gender == "男" else "" }}>{{ t("teacher.male") }}</option>
+                                <option value="女" {{ "selected" if teacher and teacher.gender == "女" else "" }}>{{ t("teacher.female") }}</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">任教科目 <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ t("teacher.subject") }} <span class="text-danger">*</span></label>
                             <input type="text" name="subject" class="form-control" required
                                    value="{{ teacher.subject if teacher else '' }}">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">电话</label>
+                            <label class="form-label">{{ t("teacher.phone") }}</label>
                             <input type="text" name="phone" class="form-control"
                                    value="{{ teacher.phone if teacher else '' }}">
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">邮箱</label>
+                        <label class="form-label">{{ t("teacher.email") }}</label>
                         <input type="email" name="email" class="form-control"
                                value="{{ teacher.email if teacher else '' }}">
                     </div>
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('teachers') }}" class="btn btn-secondary">返回</a>
+                        <a href="{{ url_for('teachers') }}" class="btn btn-secondary">{{ t("teacher.back") }}</a>
                         <button type="submit" class="btn btn-success">
-                            {{ "保存修改" if teacher else "添加教师" }}
+                            {{ t("teacher.save") if teacher else t("teacher.add") }}
                         </button>
                     </div>
                 </form>
